@@ -1,86 +1,117 @@
+import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from utils import normalize_data, gradient, denormalize_theta, cost_function, r_squared
 
+# Default values
 file_name = "data.csv"
 model_file = "theta.csv"
-learning_rate = 1
-n_iters = 100
+learning_rate = 0.1
+n_iters = 800
+target = "price"
+nb_animation = 100
 
-def dump_model(theta: np.ndarray, file_name: str) -> None:
-    df = pd.DataFrame(theta.T, columns=['a', 'b'])
-    try:
-        df.to_csv(file_name, index=False)
-    except FileNotFoundError:
-        print("impossible to save the model")
+class LinearRegression:
+    """Linear Regression model"""
+    def __init__(self, learning_rate: float, n_iters: int, file_name: str, target_name: str) -> None:
+        try:
+            df = pd.read_csv(file_name)
+        except FileNotFoundError:
+            exit("File not found")
+        if df.shape[1] != 2 or df.shape[0] < 2:
+            exit("Invalid file format")
+        if target not in df.columns.values:
+            exit("Invalid target column")
+        if learning_rate <= 0 or n_iters <= 0:
+            exit("Invalid learning rate or number of iterations")
 
-def model(theta: np.ndarray, X: np.ndarray) -> np.ndarray:
-    return X.dot(theta)
+        self.history_cost = np.zeros(n_iters)
+        self.target_name = target_name
+        self.feature_name = df.columns.values[df.columns.values != target_name][0]
 
-def cost_function(X: np.ndarray, y: np.ndarray, theta: np.ndarray) -> float:
-    m = y.size
-    F = model(theta, X)
-    return (1 / (2 * m)) * (np.sum(F - y) ** 2)
+        self.target = np.array(df[self.target_name]).reshape(-1, 1)
+        self.feature = np.array(df[self.feature_name]).reshape(-1, 1)
+        self.x = normalize_data(self.feature)
+        self.y = normalize_data(self.target)
 
-def grad(X: np.ndarray, y: np.ndarray, theta: np.ndarray) -> np.ndarray:
-    m = y.size
-    F = model(theta, X)
-    return (1 / m) * X.T.dot(F - y)
+        self.learning_rate = learning_rate
+        self.n_iters = n_iters
 
-def gradient_descent(X: np.ndarray, y: np.ndarray, theta: np.ndarray, alpha: float, n_iters: int) -> np.ndarray:
-    for i in range(n_iters):
-        theta = theta - alpha * grad(X, y, theta)
-    return theta
+    def train(self, graph: bool = False) -> None:
+        """Train the model using gradient descent"""
+        theta = np.random.randn(2, 1).reshape(-1, 1)
+        X = np.hstack((self.x, np.ones((self.x.shape[0], 1))))
+        X_denormalized = np.hstack((self.feature, np.ones((self.feature.shape[0], 1))))
 
-def stats(model: np.ndarray, y: np.ndarray) -> float:
-    u = ((y - model) ** 2 ).sum()
-    v = ((y - y.mean()) ** 2).sum()
-    return 1 - u / v
+        for i in range(self.n_iters):
+            theta = theta - self.learning_rate * gradient(X, self.y, theta)
+            if graph:
+                self.history_cost[i] = cost_function(X, self.y, theta)
+                if self.n_iters < nb_animation or not i % (self.n_iters // 100):
+                    tmp_theta = denormalize_theta(theta, self.target, self.feature)
+                    tmp_model = X_denormalized.dot(tmp_theta)
+                    self.graph_animation(tmp_model)
 
-def denormalize_theta(theta: np.ndarray, y: np.ndarray, x: np.ndarray) -> np.ndarray:
-    gap_y = np.max(y) - np.min(y)
-    gap_x = np.max(x) - np.min(x)
-    a = theta[0] * gap_y / gap_x
-    b = theta[1] * gap_y + np.min(y) - a * np.min(x)
-    return np.array([a, b]).reshape(-1, 1)
+        plt.close()
+        self.theta = denormalize_theta(theta, self.target, self.feature)
+        self.model = X_denormalized.dot(self.theta)
 
-def normalize_data(X: np.ndarray) -> np.ndarray:
-    return (X - np.min(X)) / (np.max(X) - np.min(X))
+    def dump_model(self, file_name: str) -> bool:
+        """Dump the model to a file"""
+        df = pd.DataFrame(self.theta.T, columns=['a', 'b'])
+        try:
+            df.to_csv(file_name, index=False)
+            return True
+        except FileNotFoundError:
+            print("Error: Impossible to save.")
+            return False
+
+    def graph_animation(self, model: np.ndarray) -> None:
+        """Animation graphic with pyplot"""
+        plt.plot(self.feature, model, 'r')
+        plt.scatter(self.feature, self.target)
+        plt.xlabel(self.feature_name)
+        plt.ylabel(self.target_name)
+        plt.title("Gradient descent in progress")
+        plt.legend(['model', 'data'])
+        plt.draw()
+        plt.pause(1e-2)
+        plt.clf()
+
+    def graph(self) -> None:
+        """Final graphic with pyplot"""
+        _, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+
+        # Linear regression graph
+        ax1.set_title("Linear regression with R-squared: {:.4f}".format(r_squared(self.target, self.model)))
+        ax1.plot(self.feature, self.model, 'g')
+        ax1.scatter(self.feature, self.target)
+        ax1.set_xlabel(self.feature_name)
+        ax1.set_ylabel(self.target_name)
+        ax1.legend(['model', 'data'])
+
+        # Cost History graph
+        ax2.set_title("Cost history")
+        ax2.plot(range(self.n_iters), self.history_cost)
+        ax2.set_xlabel("Number of iterations")
+        ax2.set_ylabel("Cost")
+
+        plt.show()
+
 
 if __name__ == "__main__":
-    try:
-        df = pd.read_csv(file_name)
-    except FileNotFoundError:
-        print("File not found")
-        exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--file", help="File name csv (default: data.csv)", default=file_name, type=str, metavar="\'file_name\'.csv")
+    parser.add_argument("-t", "--target", help="Target column (default: price)", default=target, type=str, metavar="\'column_name\'")
+    parser.add_argument("-m", "--model", help="File name where the model will be saved (default: theta.csv)", default=model_file, type=str, metavar="\'file_name\'.csv")
+    parser.add_argument("-n", "--n_iters", help="Number of iterations (default: 100)", default=n_iters, type=int)
+    parser.add_argument("-r", "--learning_rate", help="Learning rate (alpha) (default: 1)", default=learning_rate, type=float)
+    parser.add_argument("-g", "--graph", help="Show graph", default=False, action="store_true")
+    args = parser.parse_args()
 
-    # Prepare the data with price as target and km as feature
-    x_og = np.array(df['km']).reshape(-1, 1)
-    y_og = np.array(df['price']).reshape(-1, 1)
-    x = normalize_data(x_og)
-    y = normalize_data(y_og)
-
-    # Initialize the parameters of the model (theta = [a, b])
-    X = np.hstack((x, np.ones((x.shape[0], 1))))
-    theta = np.random.randn(2, 1).reshape(-1, 1)
-
-    # Train the model using gradient descent
-    theta = gradient_descent(X, y, theta, learning_rate, n_iters)
-
-    # Dump the model to a file
-    theta_dump = denormalize_theta(theta, y_og, x_og)
-
-    dump_model(theta_dump, model_file)
-
-    # Final trained model
-    F = model(theta, X)
-
-     # Print the R-squared value of the trained model
-    print("Performance: {:.4f}".format(stats(F, y)) )
-
-    # Graphic with pyplot
-    plt.plot(x, F, 'r')
-    plt.scatter(x, y)
-    plt.xlabel('km')
-    plt.ylabel('price')
-    plt.show()
+    lr = LinearRegression(args.learning_rate, args.n_iters, args.file, args.target)
+    lr.train(args.graph)
+    lr.dump_model(args.model)
+    if args.graph:
+        lr.graph()
