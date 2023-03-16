@@ -2,15 +2,17 @@ import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import normalize_data, gradient, denormalize_theta, cost_function, r_squared
+from utils import normalize_data, gradient, denormalize_theta, cost_function, r_squared, mae, mape, mse
 
 # Default values
 file_name = "data.csv"
-model_file = "theta.csv"
-learning_rate = 0.1
-n_iters = 800
+learning_rate = 1
+n_iters = 100
 target = "price"
+
+# const
 nb_animation = 100
+model_file = "theta.csv"
 
 class LinearRegression:
     """Linear Regression model"""
@@ -48,7 +50,7 @@ class LinearRegression:
             theta = theta - self.learning_rate * gradient(X, self.y, theta)
             if graph:
                 self.history_cost[i] = cost_function(X, self.y, theta)
-                if self.n_iters < nb_animation or not i % (self.n_iters // 100):
+                if self.n_iters < nb_animation or not i % (self.n_iters // nb_animation):
                     tmp_theta = denormalize_theta(theta, self.target, self.feature)
                     tmp_model = X_denormalized.dot(tmp_theta)
                     self.graph_animation(tmp_model)
@@ -59,7 +61,7 @@ class LinearRegression:
 
     def dump_model(self, file_name: str) -> bool:
         """Dump the model to a file"""
-        df = pd.DataFrame(self.theta.T, columns=['a', 'b'])
+        df = pd.DataFrame(self.theta.T, columns=[self.target_name, self.feature_name])
         try:
             df.to_csv(file_name, index=False)
             return True
@@ -99,12 +101,19 @@ class LinearRegression:
 
         plt.show()
 
+    def evaluate(self) -> dict:
+        """Evaluate the model"""
+        return {
+            "R-squared (R^2)": r_squared(self.target, self.model),
+            "Mean absolute error (MAE)": mae(self.target, self.model),
+            "Mean absolute % error (MAPE)": mape(self.target, self.model),
+            "Mean squared error (MSE)": mse(self.target, self.model)
+        }
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", help="File name csv (default: data.csv)", default=file_name, type=str, metavar="\'file_name\'.csv")
     parser.add_argument("-t", "--target", help="Target column (default: price)", default=target, type=str, metavar="\'column_name\'")
-    parser.add_argument("-m", "--model", help="File name where the model will be saved (default: theta.csv)", default=model_file, type=str, metavar="\'file_name\'.csv")
     parser.add_argument("-n", "--n_iters", help="Number of iterations (default: 100)", default=n_iters, type=int)
     parser.add_argument("-r", "--learning_rate", help="Learning rate (alpha) (default: 1)", default=learning_rate, type=float)
     parser.add_argument("-g", "--graph", help="Show graph", default=False, action="store_true")
@@ -112,6 +121,9 @@ if __name__ == "__main__":
 
     lr = LinearRegression(args.learning_rate, args.n_iters, args.file, args.target)
     lr.train(args.graph)
-    lr.dump_model(args.model)
+    lr.dump_model(model_file)
+    for key, value in lr.evaluate().items():
+        print("{:<30} -> {:.4f}".format(key, value))
     if args.graph:
         lr.graph()
+
