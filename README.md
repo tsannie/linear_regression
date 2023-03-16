@@ -1,4 +1,6 @@
-# linear_regression
+# ft_linear_regression
+
+![screen](https://i.imgur.com/aMdslTp.gif)
 
 ## Description
 
@@ -17,7 +19,7 @@ pip install -r requirements.txt
 ## Usage
 
 ```
-usage: train_model.py [-h] [-f 'file_name'.csv] [-t 'column_name']
+python train_model.py [-h] [-f 'file_name'.csv] [-t 'column_name']
                       [-n N_ITERS] [-r LEARNING_RATE] [-g]
 
 optional arguments:
@@ -32,3 +34,13 @@ optional arguments:
                         Learning rate (alpha) (default: 1)
   -g, --graph           Show graph
 ```
+
+```
+python predict.py
+```
+
+## Author
+
+- [@tsannie](https://github.com/tsannie)
+
+[![forthebadge](https://forthebadge.com/images/badges/made-with-python.svg)](https://forthebadge.com)
