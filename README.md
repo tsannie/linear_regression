@@ -9,7 +9,7 @@ This project provides a simple implementation of [linear regression](https://en.
 - `train_model.py` takes a [CSV](https://en.wikipedia.org/wiki/) file as input and trains the model using the gradient descent algorithm. After that the model is saved.
 - `predict.py` retrieves the trained model and makes predictions based on the given features.
 
-After running train_model.py, performance metrics such as R-squared, Mean Absolute Error (MAE), Mean Absolute Percentage Error (MAPE), and Mean Squared Error (MSE) will be calculated.
+After running `train_model.py`, performance [metrics](https://www.qualdo.ai/blog/complete-list-of-performance-metrics-for-monitoring-regression-models/) such as R-squared, Mean Absolute Error (MAE), Mean Absolute Percentage Error (MAPE), and Mean Squared Error (MSE) will be calculated.
 
 ## Installation
 
