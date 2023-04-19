@@ -1,4 +1,4 @@
-# ft_linear_regression
+# linear_regression
 
 ![screen](https://i.imgur.com/aMdslTp.gif)
 
